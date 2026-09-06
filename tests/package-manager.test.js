@@ -74,6 +74,18 @@ test('flags a conflict when multiple lockfiles are present', () => {
   }
 });
 
+test('ignores an unrecognized packageManager field instead of spawning it', () => {
+  const dir = makeTmpDir();
+  try {
+    const result = packageManager.detect(dir, { packageManager: 'totally-not-a-real-tool@1.0.0' });
+    assert.equal(result.name, 'npm');
+    assert.equal(result.source, 'default');
+    assert.equal(result.declared, null);
+  } finally {
+    removeTmpDir(dir);
+  }
+});
+
 test('runScriptArgs forwards extra args after --', () => {
   assert.deepEqual(packageManager.runScriptArgs('test', []), ['run', 'test']);
   assert.deepEqual(packageManager.runScriptArgs('test', ['--runInBand']), [

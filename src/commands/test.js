@@ -1,7 +1,7 @@
 'use strict';
 
 const { resolveNodeContext } = require('../core/node-context');
-const { runStep, formatStepLine, printFailureDetail } = require('../core/steps');
+const { runStep, formatStepLine, printFailureDetail, stripStepForJson } = require('../core/steps');
 const { reportNoProject } = require('./verify');
 const output = require('../core/output');
 const exitCodes = require('../core/exit-codes');
@@ -33,10 +33,7 @@ async function run({ flags, extraArgs }) {
   }
 
   if (flags.json) {
-    const copy = { ...step };
-    if (copy.stdout != null) copy.stdout = output.truncate(copy.stdout, 20000).text;
-    if (copy.stderr != null) copy.stderr = output.truncate(copy.stderr, 20000).text;
-    output.printJson({ command: 'test', ok: step.status === 'passed', step: copy });
+    output.printJson({ command: 'test', ok: step.status === 'passed', step: stripStepForJson(step) });
     return step.status === 'passed' ? exitCodes.OK : exitCodes.CHECK_FAILED;
   }
 

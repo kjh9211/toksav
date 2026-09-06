@@ -26,19 +26,28 @@ function listProcesses() {
     .filter((p) => Number.isInteger(p.pid) && Number.isInteger(p.ppid));
 }
 
-function collectDescendants(rootPid, processes) {
-  const descendants = [];
-  const queue = [rootPid];
-  while (queue.length > 0) {
-    const current = queue.shift();
-    for (const p of processes) {
-      if (p.ppid === current) {
-        descendants.push(p.pid);
-        queue.push(p.pid);
+/**
+ * Group a process tree's descendants by depth: level 0 is `rootPid`'s direct
+ * children, level 1 their children, and so on. Kept level-by-level (rather
+ * than one flat list) so killChildTree can kill every pid within a level
+ * concurrently — siblings don't depend on each other — while still killing
+ * shallower levels only after deeper ones are confirmed gone.
+ */
+function groupDescendantsByDepth(rootPid, processes) {
+  const levels = [];
+  let currentLevel = [rootPid];
+  while (true) {
+    const nextLevel = [];
+    for (const parentPid of currentLevel) {
+      for (const p of processes) {
+        if (p.ppid === parentPid) nextLevel.push(p.pid);
       }
     }
+    if (nextLevel.length === 0) break;
+    levels.push(nextLevel);
+    currentLevel = nextLevel;
   }
-  return descendants;
+  return levels;
 }
 
 function signalPid(pid, signal) {
@@ -97,11 +106,14 @@ async function killPidReliably(pid, signal) {
  * On Windows, `taskkill /t` kills the tree directly. On POSIX, descendants
  * are found via `ps` (rather than process-group signaling, i.e. `kill(-pgid)`,
  * which some sandboxed/containerized environments don't propagate the way a
- * regular host OS would) and killed leaf-first, each confirmed dead before
- * moving up to its parent: once a parent process exits, some sandboxes
- * reparent its still-alive children (e.g. to PID 1) and then silently stop
- * delivering further signals to them from this process — so the direct
- * child must not be killed until its descendants are already gone.
+ * regular host OS would) and killed leaf-first, each level confirmed dead
+ * before moving up to the next shallower one: once a parent process exits,
+ * some sandboxes reparent its still-alive children (e.g. to PID 1) and then
+ * silently stop delivering further signals to them from this process — so
+ * the direct child must not be killed until its descendants are already
+ * gone. Pids within the same level are killed concurrently (siblings don't
+ * depend on each other), so total time scales with tree *depth*, not with
+ * how many processes exist at each level.
  */
 async function killChildTree(child, signal) {
   if (!child || !child.pid) return;
@@ -119,16 +131,15 @@ async function killChildTree(child, signal) {
     return;
   }
 
-  let descendants = [];
+  let levels = [];
   try {
-    descendants = collectDescendants(child.pid, listProcesses());
+    levels = groupDescendantsByDepth(child.pid, listProcesses());
   } catch {
     // `ps` unavailable or failed; we can still kill the direct child below.
   }
 
-  // Deepest descendants first (collectDescendants returns shallow-to-deep).
-  for (const pid of [...descendants].reverse()) {
-    await killPidReliably(pid, signal);
+  for (const level of [...levels].reverse()) {
+    await Promise.all(level.map((pid) => killPidReliably(pid, signal)));
   }
   await killPidReliably(child.pid, signal);
 }

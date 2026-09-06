@@ -11,11 +11,18 @@ const LOCKFILES = [
   { name: 'package-lock.json', manager: 'npm' },
 ];
 
+// The only names we'll ever spawn as a package-manager command. A
+// package.json#packageManager field is otherwise-untrusted repo content, so
+// an unrecognized name is ignored rather than passed straight to spawn().
+const KNOWN_MANAGERS = new Set(['npm', 'pnpm', 'yarn', 'bun']);
+
 function parsePackageManagerField(value) {
   if (!value || typeof value !== 'string') return null;
   const match = value.match(/^([a-z]+)@([^\s+]+)/i);
   if (!match) return null;
-  return { name: match[1].toLowerCase(), version: match[2] };
+  const name = match[1].toLowerCase();
+  if (!KNOWN_MANAGERS.has(name)) return null;
+  return { name, version: match[2] };
 }
 
 /**
@@ -86,6 +93,7 @@ function runScriptArgs(scriptName, extraArgs = []) {
 
 module.exports = {
   LOCKFILES,
+  KNOWN_MANAGERS,
   parsePackageManagerField,
   detect,
   runScriptArgs,

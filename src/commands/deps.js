@@ -74,9 +74,17 @@ async function run({ flags }) {
     data.online = await gatherOnline(ctx.packageManager.name, ctx.root);
   }
 
+  // Local inspection (lockfile/dependency counts) always "succeeds" once we
+  // get this far. --online only fails the command if it was asked for and
+  // the package manager itself couldn't even be spawned (consistent with
+  // `ait port`'s behavior when no port-inspection tool is available).
+  const onlineUnavailable =
+    data.online && !data.online.outdated?.supported && !data.online.audit?.supported;
+  const ok = !onlineUnavailable;
+
   if (flags.json) {
-    output.printJson({ command: 'deps', ok: true, ...data });
-    return exitCodes.OK;
+    output.printJson({ command: 'deps', ok, ...data });
+    return ok ? exitCodes.OK : exitCodes.CHECK_FAILED;
   }
 
   const { printLine, color } = output;
@@ -122,7 +130,7 @@ async function run({ flags }) {
     }
   }
 
-  return exitCodes.OK;
+  return ok ? exitCodes.OK : exitCodes.CHECK_FAILED;
 }
 
 module.exports = { run };

@@ -28,6 +28,7 @@ async function runStep({ category, label, cwd, scriptsMap, pmName, extraArgs = [
       name,
       status: 'failed',
       exitCode: null,
+      signal: result.signal,
       durationMs,
       command,
       error: result.error,
@@ -40,6 +41,7 @@ async function runStep({ category, label, cwd, scriptsMap, pmName, extraArgs = [
     name,
     status: result.exitCode === 0 ? 'passed' : 'failed',
     exitCode: result.exitCode,
+    signal: result.signal,
     durationMs,
     command,
     timedOut: result.timedOut,
@@ -98,4 +100,13 @@ function printFailureDetail(step) {
   }
 }
 
-module.exports = { runStep, formatStepLine, printFailureDetail };
+/** Truncate a step's captured output before it goes into --json output. */
+function stripStepForJson(step) {
+  const { truncate } = output;
+  const copy = { ...step };
+  if (copy.stdout != null) copy.stdout = truncate(copy.stdout, 20000).text;
+  if (copy.stderr != null) copy.stderr = truncate(copy.stderr, 20000).text;
+  return copy;
+}
+
+module.exports = { runStep, formatStepLine, printFailureDetail, stripStepForJson };

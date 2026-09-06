@@ -4,6 +4,7 @@ const path = require('path');
 const { parseArgs } = require('./core/args');
 const exitCodes = require('./core/exit-codes');
 const runner = require('./core/runner');
+const output = require('./core/output');
 
 const COMMANDS = {
   inspect: () => require('./commands/inspect'),
@@ -87,24 +88,42 @@ async function main() {
   }
 
   if (parsed.flags.help) {
-    printHelp();
+    // Even --help must keep stdout pure JSON when --json is set, so an
+    // agent that always parses stdout as JSON doesn't choke on this path.
+    if (parsed.flags.json) {
+      output.printJson({ command: parsed.command || 'help', ok: true, help: HELP_TEXT });
+    } else {
+      printHelp();
+    }
     return exitCodes.OK;
   }
 
   const factory = COMMANDS[parsed.command];
   if (!factory) {
-    process.stderr.write(`Unknown command: "${parsed.command}"\n\n`);
-    printHelp();
+    if (parsed.flags.json) {
+      output.printJson({ command: parsed.command, ok: false, error: `unknown command: "${parsed.command}"` });
+    } else {
+      process.stderr.write(`Unknown command: "${parsed.command}"\n\n`);
+      printHelp();
+    }
     return exitCodes.USAGE_ERROR;
   }
 
   if (parsed.unknownFlags.length > 0) {
-    process.stderr.write(`Unknown option(s): ${parsed.unknownFlags.join(', ')}\n`);
+    if (parsed.flags.json) {
+      output.printJson({ command: parsed.command, ok: false, error: `unknown option(s): ${parsed.unknownFlags.join(', ')}` });
+    } else {
+      process.stderr.write(`Unknown option(s): ${parsed.unknownFlags.join(', ')}\n`);
+    }
     return exitCodes.USAGE_ERROR;
   }
 
   if (parsed.flags.timeout !== undefined && (Number.isNaN(parsed.flags.timeout) || parsed.flags.timeout <= 0)) {
-    process.stderr.write('Invalid --timeout value: expected a positive number of milliseconds.\n');
+    if (parsed.flags.json) {
+      output.printJson({ command: parsed.command, ok: false, error: 'invalid --timeout value: expected a positive number of milliseconds' });
+    } else {
+      process.stderr.write('Invalid --timeout value: expected a positive number of milliseconds.\n');
+    }
     return exitCodes.USAGE_ERROR;
   }
 
@@ -126,10 +145,12 @@ process.on('SIGINT', () => {
   process.exitCode = exitCodes.INTERRUPTED;
   process.stderr.write('\nInterrupted (SIGINT).\n');
   runner.killAll('SIGINT');
-  // Hard-exit fallback in case something still hangs. Set comfortably past
-  // runner's own cleanup sweep (500ms) so that sweep gets to finish first
-  // instead of being cut off by this force-exit.
-  setTimeout(() => process.exit(exitCodes.INTERRUPTED), 1500).unref();
+  // Hard-exit fallback in case something still hangs. runner's own cleanup
+  // kills one process-tree depth level at a time (each level up to ~500ms),
+  // so this is set comfortably past a few levels of depth rather than a
+  // single kill, letting that cleanup finish before this force-exit would
+  // otherwise cut it off.
+  setTimeout(() => process.exit(exitCodes.INTERRUPTED), 3000).unref();
 });
 
 main()

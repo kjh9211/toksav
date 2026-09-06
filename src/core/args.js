@@ -1,7 +1,5 @@
 'use strict';
 
-const BOOLEAN_FLAGS = new Set(['json', 'failFast', 'diff', 'online', 'dryRun', 'deps', 'help']);
-
 const FLAG_ALIASES = {
   '--json': 'json',
   '--fail-fast': 'failFast',
@@ -74,4 +72,4 @@ function parseArgs(argv) {
   return result;
 }
 
-module.exports = { parseArgs, BOOLEAN_FLAGS, FLAG_ALIASES };
+module.exports = { parseArgs, FLAG_ALIASES };
