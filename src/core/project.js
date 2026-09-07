@@ -2,6 +2,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { exists } = require('./fs-utils');
 
 // Extensible registry of build systems this CLI knows how to *detect*.
@@ -14,7 +15,30 @@ const BUILD_SYSTEMS = {
   gradle: { markers: ['build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts'] },
 };
 
-function findAncestorWith(startDir, markers) {
+// Windows and macOS filesystems are case-insensitive (though case-preserving),
+// so the same directory can appear with different casing depending on how it
+// was navigated to. POSIX (Linux) is case-sensitive.
+function pathsEqual(a, b) {
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    return a.toLowerCase() === b.toLowerCase();
+  }
+  return a === b;
+}
+
+// Never search for project markers above the OS temp directory. On Windows
+// and macOS in particular, %TEMP%/$TMPDIR is typically nested *inside* the
+// user's home directory — so without this ceiling, running `ait` from any
+// scratch/temp path (including this project's own tests, via os.tmpdir())
+// would walk all the way up into the home directory and mistake it for "the
+// project" if it happens to have its own package.json or .git (e.g. a
+// dotfiles repo). That's not just wrong for inspect/verify, it's a real
+// safety problem for `clean`, which could then operate on the wrong
+// directory entirely.
+function searchCeiling() {
+  return path.resolve(os.tmpdir());
+}
+
+function findAncestorWith(startDir, markers, ceiling = searchCeiling()) {
   let dir = path.resolve(startDir);
   while (true) {
     for (const marker of markers) {
@@ -22,16 +46,18 @@ function findAncestorWith(startDir, markers) {
         return dir;
       }
     }
+    if (pathsEqual(dir, ceiling)) return null;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
     dir = parent;
   }
 }
 
-function findGitRoot(startDir) {
+function findGitRoot(startDir, ceiling = searchCeiling()) {
   let dir = path.resolve(startDir);
   while (true) {
     if (exists(path.join(dir, '.git'))) return dir;
+    if (pathsEqual(dir, ceiling)) return null;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
     dir = parent;
