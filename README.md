@@ -142,3 +142,9 @@ node bin/ait.js --help
 - Maven/Gradle 프로젝트는 감지만 하고, `verify`/`test`/`build` 등의 실제 실행은 아직 지원하지 않습니다.
 - `deps --online`의 outdated/audit 결과는 npm/pnpm에 대해서만 구조화된 형태로 파싱하고, yarn(classic)/bun은 원본 출력을 그대로 보여줍니다 (해당 도구들의 출력 형식이 단일 JSON이 아니기 때문입니다).
 - `ait port`는 Linux에서 `ss`(없으면 `lsof`), macOS에서 `lsof`, Windows에서 `netstat`을 사용합니다. 해당 도구가 없는 환경에서는 조회에 실패할 수 있습니다.
+
+## 플랫폼 검증 현황
+
+- **Linux**: 전체 명령, 테스트 스위트, SIGINT/프로세스 트리 종료를 직접 실행해 검증했습니다.
+- **Windows**: 실제 Windows 10/11 + PowerShell에서 전체 명령(`inspect`/`git`/`changed`/`doctor`/`verify`/`check`/`test`/`build`/`port`/`clean`), `--json` 출력, `ait test -- <인자>`의 cmd.exe injection 안전성, Ctrl+C(SIGINT) 처리와 프로세스 정리까지 직접 실행해 검증했습니다.
+- **macOS**: 별도로 실행 검증하지 못했습니다. POSIX 공통 코드 경로(Linux와 대부분 동일)이지만 macOS 고유의 `lsof` 출력 형식 등은 추론에 근거하며, 아직 실제 macOS 환경에서 확인되지 않았습니다.
