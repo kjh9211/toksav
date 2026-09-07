@@ -4,7 +4,9 @@
   "description": "AI coding agent를 위한 프로젝트 조사/검증 CLI (git 상태, lint/typecheck/test/build 검증, 의존성 점검, 포트 확인 등을 하나의 명령으로 제공)",
   "license": "MIT",
   "bin": {
-    "ait": "bin/ait.js"
+    "ait": "bin/ait.js",
+    "toksav": "bin/ait.js",
+    "ts": "bin/ait.js"
   },
   "engines": {
     "node": ">=20"
