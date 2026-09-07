@@ -8,9 +8,8 @@ AI coding agent(Claude Code, Codex 등)가 프로젝트 상태를 빠르게 파�
 
 ### 로컬 개발 중 직접 실행
 
-의존성 설치 없이 바로 실행할 수 있습니다 (외부 런타임 의존성이 없습니다).
-
 ```bash
+npm install
 node bin/ait.js inspect
 node bin/ait.js verify
 ```
@@ -20,6 +19,7 @@ node bin/ait.js verify
 이 저장소를 global로 링크하면 `ait` 명령을 어디서나 사용할 수 있습니다.
 
 ```bash
+npm install
 npm link
 ait inspect
 ```
@@ -124,7 +124,7 @@ ait verify --json
 3. 자동으로 commit/push하지 않습니다.
 4. 자동으로 package를 install하지 않습니다 (`deps --online`도 조회만 하며 설치하지 않습니다).
 5. `clean`은 `dist`, `build`, `.next`, `coverage`, `.turbo`라는 명확한 whitelist 안의 경로만 삭제하며, 프로젝트 root/`.git`/`src`/`node_modules`는 (명시적 `--deps` 없이는) 절대 삭제하지 않습니다. 경로 traversal이나 심볼릭 링크를 통한 우회도 차단합니다.
-6. shell command를 문자열 결합으로 만들지 않고, 항상 `child_process.spawn`에 argv 배열로 전달합니다. `shell: true`는 Windows에서 `.cmd`/`.bat`로 배포되는 `npm`/`pnpm`/`yarn`/`bun`/`npx`/`mvn`/`gradle`처럼 반드시 필요한 경우로만 화이트리스트를 제한해 사용합니다.
+6. shell command를 문자열 결합으로 만들지 않고, 항상 argv 배열로 전달합니다. 프로세스 실행에는 [`cross-spawn`](https://www.npmjs.com/package/cross-spawn)을 사용하는데, Windows에서 `npm`/`pnpm`/`yarn`/`bun`/`mvn`/`gradle`이 `.cmd`/`.bat`로 배포되어 `cmd.exe`를 거쳐야만 실행 가능하기 때문입니다. Node의 `child_process.spawn`에 `shell: true`와 argv 배열을 함께 쓰면 인자가 제대로 escape되지 않는데(Node가 `DEP0190`으로 이 조합 자체를 deprecate했습니다), `cross-spawn`은 필요한 경우에만 내부적으로 `cmd.exe`를 거치면서 각 인자를 올바르게 escape하므로 `ait test -- <인자>`처럼 사용자가 넘긴 값이 별도 명령으로 해석되지 않습니다.
 7. 임의의 shell command를 실행하는 기능은 제공하지 않습니다.
 8. `Ctrl+C`(SIGINT)를 처리해 실행 중이던 프로세스 트리 전체(패키지 매니저가 내부적으로 띄운 shell/자식 프로세스 포함)를 정리한 뒤 종료합니다.
 
@@ -142,3 +142,9 @@ node bin/ait.js --help
 - Maven/Gradle 프로젝트는 감지만 하고, `verify`/`test`/`build` 등의 실제 실행은 아직 지원하지 않습니다.
 - `deps --online`의 outdated/audit 결과는 npm/pnpm에 대해서만 구조화된 형태로 파싱하고, yarn(classic)/bun은 원본 출력을 그대로 보여줍니다 (해당 도구들의 출력 형식이 단일 JSON이 아니기 때문입니다).
 - `ait port`는 Linux에서 `ss`(없으면 `lsof`), macOS에서 `lsof`, Windows에서 `netstat`을 사용합니다. 해당 도구가 없는 환경에서는 조회에 실패할 수 있습니다.
+
+## 플랫폼 검증 현황
+
+- **Linux**: 전체 명령, 테스트 스위트, SIGINT/프로세스 트리 종료를 직접 실행해 검증했습니다.
+- **Windows**: 실제 Windows 10/11 + PowerShell에서 전체 명령(`inspect`/`git`/`changed`/`doctor`/`verify`/`check`/`test`/`build`/`port`/`clean`), `--json` 출력, `ait test -- <인자>`의 cmd.exe injection 안전성, Ctrl+C(SIGINT) 처리와 프로세스 정리까지 직접 실행해 검증했습니다.
+- **macOS**: 별도로 실행 검증하지 못했습니다. POSIX 공통 코드 경로(Linux와 대부분 동일)이지만 macOS 고유의 `lsof` 출력 형식 등은 추론에 근거하며, 아직 실제 macOS 환경에서 확인되지 않았습니다.

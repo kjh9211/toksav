@@ -14,26 +14,16 @@ function withPlatform(value, fn) {
   }
 }
 
-test('needsShellOnWindows is false on non-Windows platforms', () => {
+test('isWindows/isMac/isLinux reflect process.platform', () => {
   withPlatform('linux', () => {
-    assert.equal(platform.needsShellOnWindows('npm'), false);
     assert.equal(platform.isWindows(), false);
+    assert.equal(platform.isLinux(), true);
   });
-  withPlatform('darwin', () => {
-    assert.equal(platform.needsShellOnWindows('npm'), false);
-  });
-});
-
-test('needsShellOnWindows is true only for the known .cmd/.bat shim commands on Windows', () => {
   withPlatform('win32', () => {
     assert.equal(platform.isWindows(), true);
-    for (const cmd of ['npm', 'npx', 'pnpm', 'yarn', 'bun', 'mvn', 'gradle']) {
-      assert.equal(platform.needsShellOnWindows(cmd), true, cmd);
-    }
-    // Native executables and arbitrary user input must never trigger shell:true.
-    assert.equal(platform.needsShellOnWindows('git'), false);
-    assert.equal(platform.needsShellOnWindows('node'), false);
-    assert.equal(platform.needsShellOnWindows('rm -rf /'), false);
+  });
+  withPlatform('darwin', () => {
+    assert.equal(platform.isMac(), true);
   });
 });
 
