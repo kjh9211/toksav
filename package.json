@@ -1,8 +1,25 @@
 {
-  "name": "ait",
+  "name": "toksav",
   "version": "0.1.0",
   "description": "AI coding agent를 위한 프로젝트 조사/검증 CLI (git 상태, lint/typecheck/test/build 검증, 의존성 점검, 포트 확인 등을 하나의 명령으로 제공)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kjh9211/toksav.git"
+  },
+  "homepage": "https://github.com/kjh9211/toksav#readme",
+  "bugs": {
+    "url": "https://github.com/kjh9211/toksav/issues"
+  },
+  "keywords": [
+    "cli",
+    "ai-agent",
+    "claude-code",
+    "lint",
+    "test",
+    "verify",
+    "git"
+  ],
   "bin": {
     "ait": "bin/ait.js",
     "toksav": "bin/ait.js",
