@@ -19,5 +19,8 @@
   ],
   "scripts": {
     "test": "node --test"
+  },
+  "dependencies": {
+    "cross-spawn": "7.0.6"
   }
 }

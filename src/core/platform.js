@@ -21,25 +21,6 @@ function platformName() {
   return process.platform;
 }
 
-// Commands that ship as .cmd/.bat shims on Windows and therefore cannot be
-// spawned directly without going through a shell. Kept as an explicit
-// whitelist so `shell: true` is only ever used for these known-safe cases,
-// never for arbitrary user input.
-const WINDOWS_SHELL_COMMANDS = new Set([
-  'npm',
-  'npx',
-  'pnpm',
-  'yarn',
-  'bun',
-  'mvn',
-  'gradle',
-]);
-
-function needsShellOnWindows(command) {
-  if (!isWindows()) return false;
-  return WINDOWS_SHELL_COMMANDS.has(command);
-}
-
 function summary() {
   return {
     platform: platformName(),
@@ -53,6 +34,5 @@ module.exports = {
   isMac,
   isLinux,
   platformName,
-  needsShellOnWindows,
   summary,
 };

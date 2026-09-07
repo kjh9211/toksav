@@ -1,6 +1,7 @@
 'use strict';
 
-const { spawn, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
+const crossSpawn = require('cross-spawn');
 const platform = require('./platform');
 
 const MAX_CAPTURE_BYTES = 2 * 1024 * 1024; // 2MB safety cap per stream
@@ -154,8 +155,15 @@ function killAll(signal) {
 
 /**
  * Spawn a command safely: argv is always passed as an array (never
- * concatenated into a shell string), and `shell: true` is only used for the
- * narrow, explicitly whitelisted set of Windows command shims that require it.
+ * concatenated into a shell string). Uses `cross-spawn` instead of Node's
+ * own `child_process.spawn` because on Windows, npm/pnpm/yarn/bun/mvn/gradle
+ * ship as `.cmd`/`.bat` shims that can only be launched through `cmd.exe`,
+ * and Node's own `shell: true` + argv-array combination does not escape
+ * those arguments for cmd.exe (Node itself deprecated that pattern as
+ * DEP0190 for exactly this reason). cross-spawn does the equivalent of
+ * `shell: true` only when actually needed and escapes each argument
+ * correctly for cmd.exe itself, so `--` args a user passes through
+ * (e.g. `ait test -- <args>`) can't break out into another command.
  *
  * Resolves (never rejects) with a normalized result so callers don't need to
  * special-case spawn errors (ENOENT, etc.) with try/catch.
@@ -164,14 +172,12 @@ function run(command, args = [], options = {}) {
   const { cwd, env, timeoutMs, input } = options;
 
   return new Promise((resolve) => {
-    const useShell = platform.needsShellOnWindows(command);
     let child;
 
     try {
-      child = spawn(command, args, {
+      child = crossSpawn(command, args, {
         cwd,
         env: env || process.env,
-        shell: useShell,
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
       });

@@ -59,7 +59,12 @@ function detectProject(startDir) {
 function readPackageJson(root) {
   const pkgPath = path.join(root, 'package.json');
   try {
-    return JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    // Strip a leading UTF-8 BOM: some Windows tools/editors (and
+    // PowerShell's `-Encoding UTF8`) write one, and JSON.parse rejects it
+    // outright even though the rest of the file is valid JSON.
+    const raw = fs.readFileSync(pkgPath, 'utf8');
+    const withoutBom = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+    return JSON.parse(withoutBom);
   } catch {
     return null;
   }

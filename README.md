@@ -8,9 +8,8 @@ AI coding agent(Claude Code, Codex 등)가 프로젝트 상태를 빠르게 파�
 
 ### 로컬 개발 중 직접 실행
 
-의존성 설치 없이 바로 실행할 수 있습니다 (외부 런타임 의존성이 없습니다).
-
 ```bash
+npm install
 node bin/ait.js inspect
 node bin/ait.js verify
 ```
@@ -20,6 +19,7 @@ node bin/ait.js verify
 이 저장소를 global로 링크하면 `ait` 명령을 어디서나 사용할 수 있습니다.
 
 ```bash
+npm install
 npm link
 ait inspect
 ```
@@ -124,7 +124,7 @@ ait verify --json
 3. 자동으로 commit/push하지 않습니다.
 4. 자동으로 package를 install하지 않습니다 (`deps --online`도 조회만 하며 설치하지 않습니다).
 5. `clean`은 `dist`, `build`, `.next`, `coverage`, `.turbo`라는 명확한 whitelist 안의 경로만 삭제하며, 프로젝트 root/`.git`/`src`/`node_modules`는 (명시적 `--deps` 없이는) 절대 삭제하지 않습니다. 경로 traversal이나 심볼릭 링크를 통한 우회도 차단합니다.
-6. shell command를 문자열 결합으로 만들지 않고, 항상 `child_process.spawn`에 argv 배열로 전달합니다. `shell: true`는 Windows에서 `.cmd`/`.bat`로 배포되는 `npm`/`pnpm`/`yarn`/`bun`/`npx`/`mvn`/`gradle`처럼 반드시 필요한 경우로만 화이트리스트를 제한해 사용합니다.
+6. shell command를 문자열 결합으로 만들지 않고, 항상 argv 배열로 전달합니다. 프로세스 실행에는 [`cross-spawn`](https://www.npmjs.com/package/cross-spawn)을 사용하는데, Windows에서 `npm`/`pnpm`/`yarn`/`bun`/`mvn`/`gradle`이 `.cmd`/`.bat`로 배포되어 `cmd.exe`를 거쳐야만 실행 가능하기 때문입니다. Node의 `child_process.spawn`에 `shell: true`와 argv 배열을 함께 쓰면 인자가 제대로 escape되지 않는데(Node가 `DEP0190`으로 이 조합 자체를 deprecate했습니다), `cross-spawn`은 필요한 경우에만 내부적으로 `cmd.exe`를 거치면서 각 인자를 올바르게 escape하므로 `ait test -- <인자>`처럼 사용자가 넘긴 값이 별도 명령으로 해석되지 않습니다.
 7. 임의의 shell command를 실행하는 기능은 제공하지 않습니다.
 8. `Ctrl+C`(SIGINT)를 처리해 실행 중이던 프로세스 트리 전체(패키지 매니저가 내부적으로 띄운 shell/자식 프로세스 포함)를 정리한 뒤 종료합니다.
 
